@@ -1,6 +1,3 @@
-Here's a comprehensive `README.md` for your Phone Number Lookup project that documents all the functionality and setup:
-
-```markdown
 # Phone Number Lookup Service
 
 A Laravel-based service for validating and looking up phone number information using the NumVerify API.
