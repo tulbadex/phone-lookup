@@ -4,6 +4,7 @@
     <title>Phone Lookup</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <style>
         .bulk-results {
             max-height: 500px;
@@ -15,6 +16,23 @@
         }
         .error-row {
             background-color: #ffebee;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875em;
+            margin-top: 0.25rem;
+            display: none;
+        }
+        .clear-btn {
+            margin-top: 1rem;
+        }
+        .fade-out {
+            animation: fadeOut 3s ease-in-out;
+            opacity: 0;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
         }
     </style>
 </head>
@@ -41,12 +59,16 @@
                             <div class="mb-3">
                                 <label for="phoneNumber" class="form-label">Enter Phone Number</label>
                                 <input type="tel" class="form-control" id="phoneNumber" name="phone_number" placeholder="e.g. +14158586273">
+                                <div id="phoneError" class="error-message"></div>
                             </div>
                             <button type="submit" class="btn btn-primary">Lookup</button>
                         </form>
                         
                         <div id="singleResult" class="mt-4" style="display: none;">
                             <!-- Single result will appear here -->
+                            <button id="clearSingleResult" class="btn btn-outline-secondary clear-btn">
+                                <i class="bi bi-x-circle"></i> Clear Results
+                            </button>
                         </div>
                     </div>
                     
@@ -66,13 +88,18 @@
                             <div id="bulkResults" style="display: none;">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h5>Results</h5>
-                                    <div class="form-group">
-                                        <select id="perPageSelect" class="form-select form-select-sm" style="width: auto; display: inline-block;">
-                                            <option value="5">5 per page</option>
-                                            <option value="10">10 per page</option>
-                                            <option value="20">20 per page</option>
-                                            <option value="50">50 per page</option>
-                                        </select>
+                                    <div>
+                                        <button id="clearBulkResults" class="btn btn-outline-secondary btn-sm me-2">
+                                            <i class="bi bi-x-circle"></i> Clear Results
+                                        </button>
+                                        <div class="form-group">
+                                            <select id="perPageSelect" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                                                <option value="5">5 per page</option>
+                                                <option value="10">10 per page</option>
+                                                <option value="20">20 per page</option>
+                                                <option value="50">50 per page</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -198,10 +225,16 @@
             // Single lookup form
             $('#singleLookupForm').submit(function(e) {
                 e.preventDefault();
+                const $phoneError = $('#phoneError');
+                $phoneError.hide().text('');
                 
                 const phoneNumber = iti.getNumber();
                 if (!phoneNumber) {
-                    alert('Please enter a valid phone number');
+                    $phoneError.text('Please enter a valid phone number').show();
+                    setTimeout(() => {
+                        $phoneError.addClass('fade-out');
+                        setTimeout(() => $phoneError.hide().removeClass('fade-out'), 6000);
+                    }, 3000); // Hide after 6 seconds
                     return;
                 }
 
@@ -227,15 +260,52 @@
                         }
                     },
                     error: function(xhr) {
-                        alert('Error: ' + (xhr.responseJSON?.message || 'Something went wrong'));
+                        const errorMsg = xhr.responseJSON?.message || 'Something went wrong';
+                        $phoneError.text(errorMsg).show();
+                        setTimeout(() => {
+                            $phoneError.addClass('fade-out');
+                            setTimeout(() => $phoneError.hide().removeClass('fade-out'), 3000);
+                        }, 3000);
                     }
                 });
+            });
+
+            // Clear single result
+            $(document).on('click', '#clearSingleResult', function() {
+                $('#singleResult').hide().empty();
+                $('#phoneNumber').val('');
+                iti.setNumber('');
+            });
+
+            // Clear bulk results
+            $(document).on('click', '#clearBulkResults', function() {
+                $('#bulkResults').hide();
+                $('#bulkErrors').hide();
+                $('#fileUpload').val('');
+                $('#resultsTableBody').empty();
+                $('#errorsTableBody').empty();
+                $('#pagination').empty();
             });
 
             // Bulk lookup form
             $('#bulkLookupForm').submit(function(e) {
                 e.preventDefault();
+                const fileInput = $('#fileUpload')[0];
                 
+                if (!fileInput.files || !fileInput.files[0]) {
+                    const $fileError = $('#fileUpload').next('.error-message');
+                    if (!$fileError.length) {
+                        $('#fileUpload').after('<div class="error-message">Please select a file</div>');
+                        $fileError = $('#fileUpload').next('.error-message');
+                    }
+                    $fileError.show();
+                    setTimeout(() => {
+                        $fileError.addClass('fade-out');
+                        setTimeout(() => $fileError.hide().removeClass('fade-out'), 3000);
+                    }, 3000);
+                    return;
+                }
+
                 const formData = new FormData(this);
                 const perPage = $('#perPageSelect').val();
                 
@@ -251,7 +321,13 @@
                         }
                     },
                     error: function(xhr) {
-                        alert('Error: ' + (xhr.responseJSON?.message || 'Something went wrong'));
+                        const errorMsg = xhr.responseJSON?.message || 'Something went wrong';
+                        const $errorDiv = $('<div class="error-message">').text(errorMsg).insertAfter('#fileUpload');
+                        $errorDiv.show();
+                        setTimeout(() => {
+                            $errorDiv.addClass('fade-out');
+                            setTimeout(() => $errorDiv.remove(), 3000);
+                        }, 3000);
                     }
                 });
             });

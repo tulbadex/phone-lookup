@@ -82,17 +82,25 @@ class PhoneLookupController extends Controller
             if (empty($line)) continue;
             
             try {
-                // Handle both formats:
-                // 1. +1234567890
-                // 2. 1234567890,US
+                // Remove any whitespace and parse the line
+                $line = trim($line);
+                
+                // Initialize variables
+                $phoneNumber = $line;
+                $countryCode = null;
+
+                // Check if line contains a comma (CSV format)
                 if (strpos($line, ',') !== false) {
                     $parts = explode(',', $line, 2);
                     $phoneNumber = trim($parts[0]);
-                    $countryCode = trim($parts[1]);
-                } else {
-                    $phoneNumber = trim($line);
-                    $countryCode = null;
+                    $countryCode = trim($parts[1] ?? '');
+                    
+                    // If country code is empty, set to null (will default to US)
+                    if (empty($countryCode)) {
+                        $countryCode = null;
+                    }
                 }
+                
                 if (empty($phoneNumber)) {
                     throw new \Exception("Empty phone number");
                 }
@@ -107,6 +115,7 @@ class PhoneLookupController extends Controller
             }
         }
         
+        // Rest of the method remains the same...
         // Paginate results
         $page = $request->get('page', 1);
         $perPage = $request->get('per_page', 5);

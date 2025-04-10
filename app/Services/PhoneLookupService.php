@@ -96,39 +96,56 @@ class PhoneLookupService
 
     protected function normalizePhoneNumber($phoneNumber, $countryCode = null)
     {
-        // Remove all non-digit characters except +
-        $cleaned = preg_replace('/[^0-9+]/', '', $phoneNumber);
+        // Remove all non-digit characters except + and comma (for CSV handling)
+        $cleaned = preg_replace('/[^0-9+,]/', '', $phoneNumber);
         
         if (empty($cleaned)) {
             throw new \Exception("Empty phone number after normalization");
         }
 
-        // If it already starts with +, return as is
+        // If it already starts with +, return as is (international format)
         if (str_starts_with($cleaned, '+')) {
             return $cleaned;
         }
 
-        // Handle cases where country code is provided separately
+        // Handle CSV format (number,country)
+        if (strpos($cleaned, ',') !== false) {
+            $parts = explode(',', $cleaned, 2);
+            $phonePart = trim($parts[0]);
+            $countryPart = trim($parts[1] ?? '');
+            
+            if (!empty($countryPart)) {
+                $countryCode = $countryPart;
+            }
+        } else {
+            $phonePart = $cleaned;
+        }
+
+        // Remove any remaining non-digit characters
+        $phoneDigits = preg_replace('/[^0-9]/', '', $phonePart);
+
+        // Handle cases where country code is provided
         if ($countryCode) {
             $countryCode = strtoupper($countryCode);
             if (isset($this->countryCallingCodes[$countryCode])) {
                 $countryPrefix = $this->countryCallingCodes[$countryCode];
                 
                 // Remove leading zeros if present
-                $cleaned = ltrim($cleaned, '0');
+                $phoneDigits = ltrim($phoneDigits, '0');
                 
-                return '+' . $countryPrefix . $cleaned;
+                return '+' . $countryPrefix . $phoneDigits;
             }
         }
 
+        // Default to US if no country code specified
         // If it's 10 digits, assume US number and add +1
-        if (strlen($cleaned) === 10) {
-            return '+1' . $cleaned;
+        if (strlen($phoneDigits) === 10) {
+            return '+1' . $phoneDigits;
         }
         
-        // If it's 11 digits starting with 1, add +
-        if (strlen($cleaned) === 11 && str_starts_with($cleaned, '1')) {
-            return '+' . $cleaned;
+        // If it's 11 digits starting with 1 (US), add +
+        if (strlen($phoneDigits) === 11 && str_starts_with($phoneDigits, '1')) {
+            return '+' . $phoneDigits;
         }
         
         throw new \Exception("Phone number must be in international format (start with +) or include valid country code");
